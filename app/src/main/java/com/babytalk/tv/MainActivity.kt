@@ -185,6 +185,13 @@ class MainActivity : ComponentActivity() {
         }
         orchestrator.stopSession()
         ttsManager.shutdown()
+
+        // 画面輝度と常時点灯フラグをOSデフォルト値に明示的に復帰
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        val lp = window.attributes
+        lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        window.attributes = lp
+
         super.onDestroy()
     }
 }
