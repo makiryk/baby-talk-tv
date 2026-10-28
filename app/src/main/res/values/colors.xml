@@ -1,0 +1,6 @@
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="indicator_idle">#555555</color>
+    <color name="indicator_listening">#4A90E2</color>
+    <color name="indicator_speaking">#7ED321</color>
+</resources>

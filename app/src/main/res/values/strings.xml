@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">BabyTalk TV</string>
+    <string name="accessibility_service_desc">BabyTalk TVがタイマー終了時にテレビ画面をスタンバイ状態（消灯）にするために使用します。</string>
+    <string name="mic_notification_title">BabyTalk 見守り中</string>
+    <string name="mic_notification_text">赤ちゃんの声を聞き取っています</string>
+</resources>
