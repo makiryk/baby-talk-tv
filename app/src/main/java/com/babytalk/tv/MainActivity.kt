@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
+import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,6 +55,7 @@ import com.babytalk.tv.tts.TtsManager
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
+@OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
 class MainActivity : ComponentActivity() {
 
     private lateinit var phraseRepository: PhraseRepository
@@ -196,6 +197,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@androidx.tv.material3.ExperimentalTvMaterial3Api
 @Composable
 fun BabyTalkTvScreen(
     state: ConversationState,

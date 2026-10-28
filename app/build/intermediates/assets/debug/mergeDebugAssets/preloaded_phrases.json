@@ -1,0 +1,80 @@
+[
+  {
+    "category": "REACTIVE",
+    "tone": "COOING_HAPPY",
+    "timeOfDay": "ANY",
+    "text": "あはは、じょうずにお話しできたね！"
+  },
+  {
+    "category": "REACTIVE",
+    "tone": "COOING_HAPPY",
+    "timeOfDay": "ANY",
+    "text": "たのしいねぇ！もっときかせて？"
+  },
+  {
+    "category": "REACTIVE",
+    "tone": "BABBLING_NEUTRAL",
+    "timeOfDay": "ANY",
+    "text": "なあに？うんうん、きいてるよ。"
+  },
+  {
+    "category": "REACTIVE",
+    "tone": "BABBLING_NEUTRAL",
+    "timeOfDay": "ANY",
+    "text": "そうなんだねぇ、ふふっ。"
+  },
+  {
+    "category": "REACTIVE",
+    "tone": "FUSS_WHINE",
+    "timeOfDay": "ANY",
+    "text": "どうしたの？だいじょうぶだよ、ここにいるよ。"
+  },
+  {
+    "category": "REACTIVE",
+    "tone": "FUSS_WHINE",
+    "timeOfDay": "ANY",
+    "text": "よしよし、えらいねぇ。"
+  },
+  {
+    "category": "IDLE_AUTONOMOUS",
+    "tone": "GENTLE",
+    "timeOfDay": "MORNING",
+    "text": "おはよう！きょうもいいお天気だね。"
+  },
+  {
+    "category": "IDLE_AUTONOMOUS",
+    "tone": "GENTLE",
+    "timeOfDay": "MORNING",
+    "text": "お日さまがピカピカ、きもちいいねぇ。"
+  },
+  {
+    "category": "IDLE_AUTONOMOUS",
+    "tone": "GENTLE",
+    "timeOfDay": "DAY",
+    "text": "いま何してるのかな？おててパチパチできるかな？"
+  },
+  {
+    "category": "IDLE_AUTONOMOUS",
+    "tone": "GENTLE",
+    "timeOfDay": "DAY",
+    "text": "ことりさんがチュンチュン鳴いてるよ。"
+  },
+  {
+    "category": "IDLE_AUTONOMOUS",
+    "tone": "GENTLE",
+    "timeOfDay": "EVENING",
+    "text": "お空がオレンジ色になってきたねぇ。"
+  },
+  {
+    "category": "IDLE_AUTONOMOUS",
+    "tone": "GENTLE",
+    "timeOfDay": "NIGHT",
+    "text": "お星さまがキラキラ光ってるよ。ねんねのじかんだね。"
+  },
+  {
+    "category": "CLOSING",
+    "tone": "GENTLE",
+    "timeOfDay": "ANY",
+    "text": "きょうはいっぱいお話ししたね。またあそぼうね、おやすみなさい。"
+  }
+]
