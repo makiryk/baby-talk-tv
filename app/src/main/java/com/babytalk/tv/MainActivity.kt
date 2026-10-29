@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -66,7 +67,8 @@ class MainActivity : ComponentActivity() {
     private var isServiceBound = false
 
     private val timerOptions = intArrayOf(5, 10, 15, 30, 60, 120)
-    private var selectedTimerIndex = mutableIntStateOf(1) // 10分がデフォルト
+    private val exitOptionIndex get() = timerOptions.size // 末尾の「終了」項目
+    private var selectedTimerIndex =mutableIntStateOf(1) // 10分がデフォルト
     private var showTimerUi = mutableStateOf(true)
 
     private val serviceConnection = object : ServiceConnection {
@@ -98,6 +100,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        onBackPressedDispatcher.addCallback(this) { finish() }
+
         // 全面黒・画面輝度最小化 (0.05f) ＆ 常時点灯設定
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val lp = window.attributes
@@ -123,7 +127,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val state by orchestrator.state.collectAsState()
-            val currentTimerMinutes = timerOptions[selectedTimerIndex.intValue]
+            // 0 は「終了」項目を表す
+            val currentTimerMinutes = timerOptions.getOrElse(selectedTimerIndex.intValue) { 0 }
             val isTimerVisible by showTimerUi
 
             BabyTalkTvScreen(
@@ -156,9 +161,13 @@ class MainActivity : ComponentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         // リモコンキー操作（上下キーでタイマー切り替え、長押し検知）
         when (keyCode) {
+            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                finish()
+                return true
+            }
             KeyEvent.KEYCODE_DPAD_UP -> {
                 showTimerUi.value = true
-                if (selectedTimerIndex.intValue < timerOptions.size - 1) {
+                if (selectedTimerIndex.intValue < exitOptionIndex) {
                     selectedTimerIndex.intValue++
                 }
                 return true
@@ -171,6 +180,10 @@ class MainActivity : ComponentActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                if (selectedTimerIndex.intValue == exitOptionIndex) {
+                    finish()
+                    return true
+                }
                 showTimerUi.value = false
                 orchestrator.startSession(timerOptions[selectedTimerIndex.intValue])
                 return true
@@ -186,6 +199,7 @@ class MainActivity : ComponentActivity() {
         }
         orchestrator.stopSession()
         ttsManager.shutdown()
+        stopService(Intent(this, AudioRecordService::class.java))
 
         // 画面輝度と常時点灯フラグをOSデフォルト値に明示的に復帰
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -260,7 +274,7 @@ fun BabyTalkTvScreen(
             modifier = Modifier.align(Alignment.Center)
         ) {
             Text(
-                text = "タイマー: ${timerMinutes}分",
+                text = if (timerMinutes == 0) "アプリを終了" else "タイマー: ${timerMinutes}分",
                 color = Color(0xFF666666),
                 fontSize = 24.sp
             )
