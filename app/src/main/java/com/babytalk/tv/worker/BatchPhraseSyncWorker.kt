@@ -3,9 +3,12 @@ package com.babytalk.tv.worker
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.babytalk.tv.data.AudioCacheManager
 import com.babytalk.tv.data.db.AppDatabase
 import com.babytalk.tv.data.db.BatchSyncJobEntity
+import com.babytalk.tv.data.db.CachedPhraseEntity
 import com.babytalk.tv.network.ClaudeBatchApiClient
+import com.babytalk.tv.network.GoogleCloudTtsClient
 
 /**
  * 1日1回またはキャッシュ不足時に Claude Message Batches API と同期するスケジュールワーカー。
@@ -35,7 +38,7 @@ class BatchPhraseSyncWorker(
                     // 完了した結果をダウンロードして Room に保存
                     val phrases = client.fetchAndParseResults(statusResp.resultsUrl)
                     if (phrases.isNotEmpty()) {
-                        dao.insertPhrases(phrases)
+                        dao.insertPhrases(synthesizeAudio(phrases, prefs.getString("gcp_tts_api_key", null)))
                     }
                     dao.updateJob(activeJob.copy(status = "IMPORTED", resultsUrl = statusResp.resultsUrl))
                 } else if (statusResp.status in listOf("expired", "canceled", "failed")) {
@@ -59,5 +62,23 @@ class BatchPhraseSyncWorker(
         }
 
         return Result.success()
+    }
+
+    /**
+     * Google Cloud TTS で各フレーズを事前合成してキャッシュする。
+     * キー未設定・合成失敗時は audioFilePath = null のまま（再生時は組み込みTTSへフォールバック）。
+     */
+    private fun synthesizeAudio(
+        phrases: List<CachedPhraseEntity>,
+        gcpApiKey: String?
+    ): List<CachedPhraseEntity> {
+        if (gcpApiKey.isNullOrBlank()) return phrases
+        val ttsClient = GoogleCloudTtsClient(gcpApiKey)
+        val cacheManager = AudioCacheManager(applicationContext)
+        return phrases.map { phrase ->
+            val bytes = ttsClient.synthesize(phrase.text)
+            val path = bytes?.let { cacheManager.saveAudio(phrase.textHash, it) }
+            if (path != null) phrase.copy(audioFilePath = path) else phrase
+        }
     }
 }

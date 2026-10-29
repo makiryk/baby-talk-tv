@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.babytalk.tv.audio.AudioRecordService
 import com.babytalk.tv.data.PhraseRepository
+import com.babytalk.tv.network.LocalSettingsServer
 import com.babytalk.tv.orchestrator.ConversationOrchestrator
 import com.babytalk.tv.orchestrator.ConversationState
 import com.babytalk.tv.power.PowerManagerHelper
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var phraseRepository: PhraseRepository
     private lateinit var ttsManager: TtsManager
     private lateinit var orchestrator: ConversationOrchestrator
+    private lateinit var settingsServer: LocalSettingsServer
 
     private var audioService: AudioRecordService? = null
     private var isServiceBound = false
@@ -125,6 +127,14 @@ class MainActivity : ComponentActivity() {
             }
         )
 
+        // スマホ連携の設定サーバー (同一Wi-Fi内から API キーを設定)
+        settingsServer = LocalSettingsServer(this)
+        val settingsUrl = if (settingsServer.start()) {
+            LocalSettingsServer.getLocalIpAddress()?.let { "設定: http://$it:${LocalSettingsServer.PORT}" }
+        } else {
+            null
+        }
+
         setContent {
             val state by orchestrator.state.collectAsState()
             // 0 は「終了」項目を表す
@@ -134,7 +144,8 @@ class MainActivity : ComponentActivity() {
             BabyTalkTvScreen(
                 state = state,
                 timerMinutes = currentTimerMinutes,
-                isTimerVisible = isTimerVisible
+                isTimerVisible = isTimerVisible,
+                settingsUrl = settingsUrl
             )
         }
 
@@ -198,6 +209,7 @@ class MainActivity : ComponentActivity() {
             isServiceBound = false
         }
         orchestrator.stopSession()
+        settingsServer.stop()
         ttsManager.shutdown()
         stopService(Intent(this, AudioRecordService::class.java))
 
@@ -216,7 +228,8 @@ class MainActivity : ComponentActivity() {
 fun BabyTalkTvScreen(
     state: ConversationState,
     timerMinutes: Int,
-    isTimerVisible: Boolean
+    isTimerVisible: Boolean,
+    settingsUrl: String? = null
 ) {
     // ピクセルシフト用オフセット (60秒ごとに微動)
     var pixelShiftOffset by remember { mutableStateOf(IntOffset(0, 0)) }
@@ -278,6 +291,20 @@ fun BabyTalkTvScreen(
                 color = Color(0xFF666666),
                 fontSize = 24.sp
             )
+        }
+
+        // 設定ページの案内 (タイマーUIと同時に控えめに表示)
+        if (settingsUrl != null) {
+            AnimatedVisibility(
+                visible = timerAlphaVisible,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(800)),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(32.dp)
+            ) {
+                Text(text = settingsUrl, color = Color(0xFF444444), fontSize = 14.sp)
+            }
         }
 
         // 極小動作インジケーター (画面右下端、ピクセルシフト付き)
