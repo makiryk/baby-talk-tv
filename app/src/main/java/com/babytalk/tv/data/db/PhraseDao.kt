@@ -49,6 +49,10 @@ interface PhraseDao {
     @Query("UPDATE cached_phrases SET usedCount = usedCount + 1, lastUsedAt = :timestamp WHERE id = :id")
     suspend fun incrementUsage(id: Long, timestamp: Long = System.currentTimeMillis())
 
+    // 既存行（音声パス未設定の旧シード）へ音声ファイルパスを反映
+    @Query("UPDATE cached_phrases SET audioFilePath = :path WHERE textHash = :textHash AND audioFilePath IS NULL")
+    suspend fun updateAudioPath(textHash: String, path: String)
+
     // --- バッチジョブ管理 ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertJob(job: BatchSyncJobEntity)

@@ -3,78 +3,91 @@
     "category": "REACTIVE",
     "tone": "COOING_HAPPY",
     "timeOfDay": "ANY",
-    "text": "あはは、じょうずにお話しできたね！"
+    "text": "あはは、じょうずにお話しできたね！",
+    "audioFileName": "seed_01.mp3"
   },
   {
     "category": "REACTIVE",
     "tone": "COOING_HAPPY",
     "timeOfDay": "ANY",
-    "text": "たのしいねぇ！もっときかせて？"
+    "text": "たのしいねぇ！もっときかせて？",
+    "audioFileName": "seed_02.mp3"
   },
   {
     "category": "REACTIVE",
     "tone": "BABBLING_NEUTRAL",
     "timeOfDay": "ANY",
-    "text": "なあに？うんうん、きいてるよ。"
+    "text": "なあに？うんうん、きいてるよ。",
+    "audioFileName": "seed_03.mp3"
   },
   {
     "category": "REACTIVE",
     "tone": "BABBLING_NEUTRAL",
     "timeOfDay": "ANY",
-    "text": "そうなんだねぇ、ふふっ。"
+    "text": "そうなんだねぇ、ふふっ。",
+    "audioFileName": "seed_04.mp3"
   },
   {
     "category": "REACTIVE",
     "tone": "FUSS_WHINE",
     "timeOfDay": "ANY",
-    "text": "どうしたの？だいじょうぶだよ、ここにいるよ。"
+    "text": "どうしたの？だいじょうぶだよ、ここにいるよ。",
+    "audioFileName": "seed_05.mp3"
   },
   {
     "category": "REACTIVE",
     "tone": "FUSS_WHINE",
     "timeOfDay": "ANY",
-    "text": "よしよし、えらいねぇ。"
+    "text": "よしよし、えらいねぇ。",
+    "audioFileName": "seed_06.mp3"
   },
   {
     "category": "IDLE_AUTONOMOUS",
     "tone": "GENTLE",
     "timeOfDay": "MORNING",
-    "text": "おはよう！きょうもいいお天気だね。"
+    "text": "おはよう！きょうもいいお天気だね。",
+    "audioFileName": "seed_07.mp3"
   },
   {
     "category": "IDLE_AUTONOMOUS",
     "tone": "GENTLE",
     "timeOfDay": "MORNING",
-    "text": "お日さまがピカピカ、きもちいいねぇ。"
+    "text": "お日さまがピカピカ、きもちいいねぇ。",
+    "audioFileName": "seed_08.mp3"
   },
   {
     "category": "IDLE_AUTONOMOUS",
     "tone": "GENTLE",
     "timeOfDay": "DAY",
-    "text": "いま何してるのかな？おててパチパチできるかな？"
+    "text": "いま何してるのかな？おててパチパチできるかな？",
+    "audioFileName": "seed_09.mp3"
   },
   {
     "category": "IDLE_AUTONOMOUS",
     "tone": "GENTLE",
     "timeOfDay": "DAY",
-    "text": "ことりさんがチュンチュン鳴いてるよ。"
+    "text": "ことりさんがチュンチュン鳴いてるよ。",
+    "audioFileName": "seed_10.mp3"
   },
   {
     "category": "IDLE_AUTONOMOUS",
     "tone": "GENTLE",
     "timeOfDay": "EVENING",
-    "text": "お空がオレンジ色になってきたねぇ。"
+    "text": "お空がオレンジ色になってきたねぇ。",
+    "audioFileName": "seed_11.mp3"
   },
   {
     "category": "IDLE_AUTONOMOUS",
     "tone": "GENTLE",
     "timeOfDay": "NIGHT",
-    "text": "お星さまがキラキラ光ってるよ。ねんねのじかんだね。"
+    "text": "お星さまがキラキラ光ってるよ。ねんねのじかんだね。",
+    "audioFileName": "seed_12.mp3"
   },
   {
     "category": "CLOSING",
     "tone": "GENTLE",
     "timeOfDay": "ANY",
-    "text": "きょうはいっぱいお話ししたね。またあそぼうね、おやすみなさい。"
+    "text": "きょうはいっぱいお話ししたね。またあそぼうね、おやすみなさい。",
+    "audioFileName": "seed_13.mp3"
   }
 ]

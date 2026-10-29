@@ -45,8 +45,10 @@ class VadDetectorTest {
         val silenceBuffer = ShortArray(1024) { 0 }
 
         // 発声をシミュレート (約300ms = 約5フレーム)
+        // VadDetector は System.currentTimeMillis() で継続時間を判定するため、実時間を経過させる
         repeat(6) {
             detector.processFrame(speechBuffer, speechBuffer.size)
+            Thread.sleep(50)
         }
 
         // 無音フレームを投入して発声終了をトリガー

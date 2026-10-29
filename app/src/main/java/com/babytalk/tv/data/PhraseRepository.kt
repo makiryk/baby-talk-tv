@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
+import java.io.File
 import java.io.InputStreamReader
 import java.security.MessageDigest
 import java.util.Calendar
@@ -28,7 +29,7 @@ data class Phrase(
  * - 初期シード（preloaded_phrases.json）の自動インポート
  * - 使用履歴カウント管理
  */
-class PhraseRepository(private val context: Context) {
+open class PhraseRepository(private val context: Context) {
 
     private val database = AppDatabase.getDatabase(context)
     private val dao = database.phraseDao()
@@ -58,8 +59,11 @@ class PhraseRepository(private val context: Context) {
                     val tone = obj.getString("tone")
                     val timeOfDay = obj.optString("timeOfDay", "ANY")
                     val text = obj.getString("text")
+                    val audioPath = obj.optString("audioFileName", "")
+                        .takeIf { it.isNotEmpty() }
+                        ?.let { extractAudioAsset(it) }
 
-                    fallbackPhrases.add(Phrase(category, tone, timeOfDay, text))
+                    fallbackPhrases.add(Phrase(category, tone, timeOfDay, text, audioPath))
 
                     val hash = sha256(text)
                     entityList.add(
@@ -68,13 +72,18 @@ class PhraseRepository(private val context: Context) {
                             category = category,
                             tone = tone,
                             timeOfDay = timeOfDay,
-                            text = text
+                            text = text,
+                            audioFilePath = audioPath
                         )
                     )
                 }
 
                 // DBへの初期シード投入
                 dao.insertPhrases(entityList)
+                // 既存行（INSERT が IGNORE されたもの）にも音声パスを反映
+                entityList.forEach { entity ->
+                    entity.audioFilePath?.let { dao.updateAudioPath(entity.textHash, it) }
+                }
             } catch (e: Exception) {
                 // 最低限のフォールバック
                 fallbackPhrases.add(Phrase("REACTIVE", "COOING_HAPPY", "ANY", "たのしいねぇ！"))
@@ -87,9 +96,28 @@ class PhraseRepository(private val context: Context) {
     }
 
     /**
+     * assets/audio 配下の音声を内部ストレージ（filesDir/audio）へ未展開なら展開し、絶対パスを返す。
+     * 失敗時は null（TTS フォールバックに任せる）。
+     */
+    private fun extractAudioAsset(fileName: String): String? {
+        return try {
+            val dir = File(context.filesDir, "audio").apply { mkdirs() }
+            val file = File(dir, fileName)
+            if (!file.exists() || file.length() == 0L) {
+                context.assets.open("audio/$fileName").use { input ->
+                    file.outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+            file.absolutePath
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * M6対応: 段階的フォールバック付きフレーズ選定
      */
-    fun getPhrase(category: String, tone: VoiceTone? = null): Phrase {
+    open fun getPhrase(category: String, tone: VoiceTone? = null): Phrase {
         val toneString = tone?.name ?: "GENTLE"
         val currentTimeOfDay = getCurrentTimeOfDay()
 

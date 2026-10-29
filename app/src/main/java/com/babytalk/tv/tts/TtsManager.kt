@@ -2,6 +2,8 @@ package com.babytalk.tv.tts
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
@@ -28,6 +30,13 @@ class TtsManager(
     private var isTtsInitialized = false
     private var mediaPlayer: MediaPlayer? = null
 
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
+
+    // 1回の発話につき開始・完了通知を1度だけ行うためのフラグ
+    private var isStartNotified = false
+    private var isCompleted = true
+
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     private var timeoutJob: Job? = null
 
@@ -53,7 +62,7 @@ class TtsManager(
 
         textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {
-                scope.launch { onUtteranceStart() }
+                scope.launch { notifyStart() }
             }
 
             override fun onDone(utteranceId: String?) {
@@ -70,6 +79,11 @@ class TtsManager(
      * テキストまたは事前合成ファイルを発話再生
      */
     fun speak(text: String, audioFilePath: String? = null) {
+        // 前回の再生を停止（コールバックなし）
+        releaseMediaPlayer()
+        isCompleted = false
+        isStartNotified = false
+
         // タイムアウト監視を開始 (M5)
         timeoutJob?.cancel()
         timeoutJob = scope.launch {
@@ -77,27 +91,18 @@ class TtsManager(
             handleComplete()
         }
 
+        requestAudioFocus()
+
         // 事前合成ファイルが存在する場合は MediaPlayer で再生
         if (!audioFilePath.isNullOrEmpty() && File(audioFilePath).exists()) {
-            playAudioFile(audioFilePath)
-            return
-        }
-
-        // フォールバック: Android組み込み TextToSpeech で発話
-        if (isTtsInitialized && textToSpeech != null) {
-            val params = Bundle().apply {
-                putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, android.media.AudioManager.STREAM_MUSIC)
-            }
-            textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, params, "utterance_${System.currentTimeMillis()}")
+            playAudioFile(text, audioFilePath)
         } else {
-            // TTS未準備時は即時完了
-            handleComplete()
+            speakWithBuiltinTts(text)
         }
     }
 
-    private fun playAudioFile(path: String) {
+    private fun playAudioFile(text: String, path: String) {
         try {
-            mediaPlayer?.release()
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
@@ -105,43 +110,105 @@ class TtsManager(
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .build()
                 )
-                setDataSource(path)
-                prepare()
-                setOnPreparedListener {
-                    onUtteranceStart()
-                    start()
+                setOnPreparedListener { player ->
+                    notifyStart()
+                    player.start()
                 }
                 setOnCompletionListener {
                     handleComplete()
                 }
                 setOnErrorListener { _, _, _ ->
-                    handleComplete()
+                    // 再生エラー時は組み込み TTS にフォールバック
+                    releaseMediaPlayer()
+                    speakWithBuiltinTts(text)
                     true
                 }
+                setDataSource(path)
+                prepareAsync()
             }
         } catch (e: Exception) {
-            // 再生失敗時は完了扱い
+            releaseMediaPlayer()
+            speakWithBuiltinTts(text)
+        }
+    }
+
+    private fun speakWithBuiltinTts(text: String) {
+        if (isCompleted) return
+        val tts = textToSpeech
+        if (isTtsInitialized && tts != null) {
+            val params = Bundle().apply {
+                putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
+            }
+            val result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "utterance_${System.currentTimeMillis()}")
+            if (result == TextToSpeech.ERROR) {
+                notifyStart()
+                handleComplete()
+            }
+        } else {
+            // TTS未準備時は開始・完了を通知して終了
+            notifyStart()
             handleComplete()
         }
     }
 
+    private fun notifyStart() {
+        if (isStartNotified) return
+        isStartNotified = true
+        onUtteranceStart()
+    }
+
     private fun handleComplete() {
+        if (isCompleted) return
+        isCompleted = true
         timeoutJob?.cancel()
         timeoutJob = null
+        releaseMediaPlayer()
+        abandonAudioFocus()
         onUtteranceComplete()
+    }
+
+    private fun requestAudioFocus() {
+        if (audioFocusRequest != null) return
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            .build()
+        if (audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            audioFocusRequest = request
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        audioFocusRequest = null
+    }
+
+    private fun releaseMediaPlayer() {
+        mediaPlayer?.let {
+            // コールバックを外してから解放（解放後のイベントでフォールバックが走らないように）
+            it.setOnPreparedListener(null)
+            it.setOnCompletionListener(null)
+            it.setOnErrorListener(null)
+            try {
+                it.stop()
+            } catch (e: IllegalStateException) {
+                // 未準備状態では stop() が例外を投げるが無視してよい
+            }
+            it.release()
+        }
+        mediaPlayer = null
     }
 
     fun stop() {
         timeoutJob?.cancel()
-        try {
-            mediaPlayer?.stop()
-            mediaPlayer?.release()
-        } catch (e: Exception) {
-            // ignore
-        } finally {
-            mediaPlayer = null
-        }
+        timeoutJob = null
+        releaseMediaPlayer()
         textToSpeech?.stop()
+        abandonAudioFocus()
     }
 
     fun shutdown() {
