@@ -175,7 +175,7 @@ class MainActivity : ComponentActivity() {
 
     private fun bindAudioService() {
         val intent = Intent(this, AudioRecordService::class.java)
-        startService(intent)
+        ContextCompat.startForegroundService(this, intent)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
     }
 
