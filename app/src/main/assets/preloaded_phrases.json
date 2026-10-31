@@ -89,5 +89,27 @@
     "timeOfDay": "ANY",
     "text": "きょうはいっぱいお話ししたね。またあそぼうね、おやすみなさい。",
     "audioFileName": "seed_13.mp3"
-  }
+  },
+  { "category": "UNDERSTOOD", "tone": "BABBLE_VOWEL", "timeOfDay": "ANY", "text": "あー、ってお話ししたね。あー" },
+  { "category": "UNDERSTOOD", "tone": "BABBLE_VOWEL", "timeOfDay": "ANY", "text": "うー、きこえてるよ" },
+  { "category": "UNDERSTOOD", "tone": "BABBLE_VOWEL", "timeOfDay": "ANY", "text": "あー、楽しいねぇ" },
+  { "category": "UNDERSTOOD", "tone": "BABBLE_REPETITION", "timeOfDay": "ANY", "text": "ばばば、って聞こえたよ！お話しじょうずだねぇ" },
+  { "category": "UNDERSTOOD", "tone": "BABBLE_REPETITION", "timeOfDay": "ANY", "text": "いっぱいお話ししてるね！" },
+  { "category": "UNDERSTOOD", "tone": "WORD_MAMMA", "timeOfDay": "ANY", "text": "まんま？おいしいねぇ！もぐもぐ" },
+  { "category": "UNDERSTOOD", "tone": "WORD_MAMMA", "timeOfDay": "ANY", "text": "お腹すいたのかな？まんま美味しいね。" },
+  { "category": "UNDERSTOOD", "tone": "WORD_WANWAN", "timeOfDay": "ANY", "text": "わんわん！かわいいねぇ！" },
+  { "category": "UNDERSTOOD", "tone": "WORD_WANWAN", "timeOfDay": "ANY", "text": "わんわん、どこにいるかな？" },
+  { "category": "UNDERSTOOD", "tone": "WORD_BAA", "timeOfDay": "ANY", "text": "ばあ！びっくりした〜！" },
+  { "category": "UNDERSTOOD", "tone": "WORD_BAA", "timeOfDay": "ANY", "text": "いないいない…ばあ！ふふふっ" },
+  { "category": "UNDERSTOOD", "tone": "WORD_BUUBUU", "timeOfDay": "ANY", "text": "ぶーぶー！かっこいいねぇ、ブーン！" },
+  { "category": "UNDERSTOOD", "tone": "WORD_PAPA", "timeOfDay": "ANY", "text": "パパって呼んだのかな？パパだいすき！" },
+  { "category": "UNDERSTOOD", "tone": "WORD_MAMA", "timeOfDay": "ANY", "text": "ママってお話ししたね。ママだいすき！" },
+  { "category": "UNDERSTOOD", "tone": "WORD_GREETING", "timeOfDay": "ANY", "text": "おはよう！きょうも元気に起きられたね！" },
+  { "category": "UNDERSTOOD", "tone": "WORD_BYE", "timeOfDay": "ANY", "text": "バイバイ！おててフリフリ、じょうずだねぇ！" },
+  { "category": "UNDERSTOOD", "tone": "WORD_NENNE", "timeOfDay": "ANY", "text": "ねんね？ねむたくなっちゃったかな？トントンしようね。" },
+  { "category": "UNDERSTOOD", "tone": "GENERAL_HAPPY", "timeOfDay": "ANY", "text": "あはは、楽しそうだねぇ！" },
+  { "category": "UNDERSTOOD", "tone": "GENERAL_HAPPY", "timeOfDay": "ANY", "text": "にこにこ笑顔だね。" },
+  { "category": "UNDERSTOOD", "tone": "GENERAL_FUSS", "timeOfDay": "ANY", "text": "どうしたの？よしよし、だいじょうぶだよ。" },
+  { "category": "UNDERSTOOD", "tone": "GENERAL_NEUTRAL", "timeOfDay": "ANY", "text": "なあに？うんうん、ちゃんときいてるよ。" },
+  { "category": "UNDERSTOOD", "tone": "GENERAL_NEUTRAL", "timeOfDay": "ANY", "text": "そっかそっか、お話ししてくれてありがとう。" }
 ]

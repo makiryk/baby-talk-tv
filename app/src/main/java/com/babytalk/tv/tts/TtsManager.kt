@@ -21,11 +21,17 @@ import java.util.Locale
  * - M3対応: 事前合成オーディオ再生＋組み込みTTSフォールバック
  * - M5対応: タイムアウト付き発話完了監視
  */
+/** オーケストレーターが依存する発話出力の最小インターフェース（テスト差し替え用）。 */
+interface Speaker {
+    fun speak(text: String, audioFilePath: String? = null)
+    fun stop()
+}
+
 class TtsManager(
     private val context: Context,
     private val onUtteranceStart: () -> Unit,
     private val onUtteranceComplete: () -> Unit
-) {
+) : Speaker {
     private var textToSpeech: TextToSpeech? = null
     private var isTtsInitialized = false
     private var mediaPlayer: MediaPlayer? = null
@@ -78,7 +84,7 @@ class TtsManager(
     /**
      * テキストまたは事前合成ファイルを発話再生
      */
-    fun speak(text: String, audioFilePath: String? = null) {
+    override fun speak(text: String, audioFilePath: String?) {
         // 前回の再生を停止（コールバックなし）
         releaseMediaPlayer()
         isCompleted = false
@@ -203,7 +209,7 @@ class TtsManager(
         mediaPlayer = null
     }
 
-    fun stop() {
+    override fun stop() {
         timeoutJob?.cancel()
         timeoutJob = null
         releaseMediaPlayer()

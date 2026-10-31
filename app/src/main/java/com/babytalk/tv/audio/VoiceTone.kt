@@ -9,5 +9,6 @@ enum class VoiceTone {
 data class VoiceEvent(
     val tone: VoiceTone,
     val durationMs: Long,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val audioPcm: ShortArray = shortArrayOf()
 )

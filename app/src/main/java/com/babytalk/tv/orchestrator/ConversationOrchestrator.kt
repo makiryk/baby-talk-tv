@@ -1,9 +1,11 @@
 package com.babytalk.tv.orchestrator
 
+import com.babytalk.tv.audio.UtteranceUnderstander
 import com.babytalk.tv.audio.VoiceEvent
-import com.babytalk.tv.audio.VoiceTone
-import com.babytalk.tv.data.PhraseRepository
-import com.babytalk.tv.tts.TtsManager
+import com.babytalk.tv.data.Phrase
+import com.babytalk.tv.data.PhraseSource
+import com.babytalk.tv.tts.Speaker
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,24 +23,33 @@ import kotlin.random.Random
  * - M7対応: 無音時自律語りかけのランダム化（120〜180秒）
  */
 class ConversationOrchestrator(
-    private val phraseRepository: PhraseRepository,
-    private val ttsManager: TtsManager,
+    private val phraseRepository: PhraseSource,
+    private val ttsManager: Speaker,
+    private val speechUnderstandingEngine: UtteranceUnderstander,
     private val onMuteAudioInput: (Boolean) -> Unit,
-    private val onSessionFinished: () -> Unit
+    private val onSessionFinished: () -> Unit,
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main + Job())
 ) {
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
-
     private val _state = MutableStateFlow(ConversationState.IDLE)
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     private var sessionTimerJob: Job? = null
     private var idleAutonomousTimerJob: Job? = null
+    private var understandingJob: Job? = null
+    private var postSpeechJob: Job? = null
     private var sessionDurationMinutes = 10
+
+    // セッション・発話の世代番号。非同期の理解結果が古い世代のものなら破棄する
+    private var sessionId = 0
+    private var utteranceId = 0
 
     /**
      * セッション開始
      */
     fun startSession(durationMinutes: Int = 10) {
+        sessionId++
+        understandingJob?.cancel()
+        postSpeechJob?.cancel()
         sessionDurationMinutes = durationMinutes.coerceIn(5, 120) // L3対応: 最大120分
         _state.value = ConversationState.IDLE
         onMuteAudioInput(false)
@@ -80,21 +91,36 @@ class ConversationOrchestrator(
 
         _state.value = ConversationState.LISTENING
 
-        scope.launch {
-            delay(200) // 短い解析マージン
-            triggerReactiveResponse(event.tone)
+        val currentSession = sessionId
+        val currentUtterance = ++utteranceId
+        understandingJob?.cancel()
+        understandingJob = scope.launch {
+            val understanding = try {
+                speechUnderstandingEngine.understand(event)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 理解に失敗しても従来どおりトーンで相槌を返す
+                return@launch triggerReactiveResponse(currentSession, currentUtterance) {
+                    phraseRepository.getPhrase(category = "REACTIVE", tone = event.tone)
+                }
+            }
+            triggerReactiveResponse(currentSession, currentUtterance) {
+                phraseRepository.getUnderstoodPhrase(understanding)
+            }
         }
     }
 
     /**
-     * 赤ちゃんの声に対する相槌発話
+     * 赤ちゃんの声に対する発話。セッション・発話が古くなっていたら何もしない
      */
-    private fun triggerReactiveResponse(tone: VoiceTone) {
+    private fun triggerReactiveResponse(session: Int, utterance: Int, selectPhrase: () -> Phrase) {
+        if (session != sessionId || utterance != utteranceId) return
         if (_state.value != ConversationState.LISTENING) return
 
         enterSpeakingState()
 
-        val phrase = phraseRepository.getPhrase(category = "REACTIVE", tone = tone)
+        val phrase = selectPhrase()
         ttsManager.speak(phrase.text, phrase.audioPath)
     }
 
@@ -131,7 +157,8 @@ class ConversationOrchestrator(
         }
 
         if (_state.value == ConversationState.SPEAKING) {
-            scope.launch {
+            postSpeechJob?.cancel()
+            postSpeechJob = scope.launch {
                 // H3対応: 余韻マージン 500ms 待機後にミュート解除
                 delay(500)
                 onMuteAudioInput(false)
@@ -146,6 +173,8 @@ class ConversationOrchestrator(
      */
     private fun handleSessionTimeout() {
         idleAutonomousTimerJob?.cancel()
+        understandingJob?.cancel()
+        postSpeechJob?.cancel()
         _state.value = ConversationState.CLOSING
         onMuteAudioInput(true)
 
@@ -155,8 +184,12 @@ class ConversationOrchestrator(
     }
 
     fun stopSession() {
+        sessionId++
+        utteranceId++
         sessionTimerJob?.cancel()
         idleAutonomousTimerJob?.cancel()
+        understandingJob?.cancel()
+        postSpeechJob?.cancel()
         ttsManager.stop()
         _state.value = ConversationState.STANDBY
         onMuteAudioInput(true)

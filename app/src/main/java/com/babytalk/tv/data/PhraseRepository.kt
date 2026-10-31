@@ -1,6 +1,7 @@
 package com.babytalk.tv.data
 
 import android.content.Context
+import com.babytalk.tv.audio.UtteranceUnderstanding
 import com.babytalk.tv.audio.VoiceTone
 import com.babytalk.tv.data.db.AppDatabase
 import com.babytalk.tv.data.db.CachedPhraseEntity
@@ -29,11 +30,20 @@ data class Phrase(
  * - 初期シード（preloaded_phrases.json）の自動インポート
  * - 使用履歴カウント管理
  */
-open class PhraseRepository(private val context: Context) {
+interface PhraseSource {
+    fun getPhrase(category: String, tone: VoiceTone? = null): Phrase
+    fun getUnderstoodPhrase(understanding: UtteranceUnderstanding): Phrase
+}
+
+open class PhraseRepository(private val context: Context) : PhraseSource {
 
     private val database = AppDatabase.getDatabase(context)
     private val dao = database.phraseDao()
     private val scope = CoroutineScope(Dispatchers.IO + Job())
+
+    companion object {
+        const val UNDERSTOOD_CATEGORY = "UNDERSTOOD"
+    }
 
     // メモリ内フォールバック用
     private val fallbackPhrases = mutableListOf<Phrase>()
@@ -117,7 +127,7 @@ open class PhraseRepository(private val context: Context) {
     /**
      * M6対応: 段階的フォールバック付きフレーズ選定
      */
-    open fun getPhrase(category: String, tone: VoiceTone? = null): Phrase {
+    override fun getPhrase(category: String, tone: VoiceTone?): Phrase {
         val toneString = tone?.name ?: "GENTLE"
         val currentTimeOfDay = getCurrentTimeOfDay()
 
@@ -154,6 +164,30 @@ open class PhraseRepository(private val context: Context) {
                 }
             }
         }
+    }
+
+    /**
+     * 聞き取った内容（意図）に合うフレーズを選ぶ。
+     * UNDERSTOOD カテゴリで tone=意図名 のものを優先し、無ければ従来の REACTIVE（トーン別）にフォールバックする。
+     */
+    override fun getUnderstoodPhrase(understanding: UtteranceUnderstanding): Phrase {
+        val intentName = understanding.intent.name
+        val currentTimeOfDay = getCurrentTimeOfDay()
+        val found = runBlocking(Dispatchers.IO) {
+            val entity = try {
+                dao.getExactPhrase(UNDERSTOOD_CATEGORY, intentName, currentTimeOfDay)
+            } catch (e: Exception) {
+                null
+            }
+            if (entity != null) {
+                dao.incrementUsage(entity.id)
+                Phrase(entity.category, entity.tone, entity.timeOfDay, entity.text, entity.audioFilePath)
+            } else {
+                fallbackPhrases.filter { it.category == UNDERSTOOD_CATEGORY && it.tone == intentName }
+                    .randomOrNull()
+            }
+        }
+        return found ?: getPhrase("REACTIVE", understanding.tone)
     }
 
     private fun getCurrentTimeOfDay(): String {

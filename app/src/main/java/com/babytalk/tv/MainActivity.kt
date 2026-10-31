@@ -47,7 +47,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.babytalk.tv.audio.AcousticPatternAnalyzer
 import com.babytalk.tv.audio.AudioRecordService
+import com.babytalk.tv.audio.SpeechUnderstandingEngine
+import com.babytalk.tv.network.GoogleCloudSttClient
 import com.babytalk.tv.data.PhraseRepository
 import com.babytalk.tv.network.LocalSettingsServer
 import com.babytalk.tv.orchestrator.ConversationOrchestrator
@@ -121,6 +124,13 @@ class MainActivity : ComponentActivity() {
         orchestrator = ConversationOrchestrator(
             phraseRepository = phraseRepository,
             ttsManager = ttsManager,
+            speechUnderstandingEngine = SpeechUnderstandingEngine(
+                AcousticPatternAnalyzer(),
+                GoogleCloudSttClient(apiKeyProvider = {
+                    getSharedPreferences(LocalSettingsServer.PREFS_NAME, MODE_PRIVATE)
+                        .getString(LocalSettingsServer.KEY_GCP_TTS, null)
+                })
+            ),
             onMuteAudioInput = { muted -> audioService?.setMuted(muted) },
             onSessionFinished = {
                 PowerManagerHelper.turnOffTvOrDim(this)

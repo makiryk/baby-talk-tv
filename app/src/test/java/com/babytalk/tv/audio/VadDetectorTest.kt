@@ -1,70 +1,89 @@
-package com.babytalk.tv.audio
+﻿package com.babytalk.tv.audio
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Test
 import kotlin.math.sin
 
 class VadDetectorTest {
+    private fun speech(size: Int = 160) = ShortArray(size) {
+        (sin(2 * Math.PI * 400 * it / 16000) * 15000).toInt().toShort()
+    }
+    private fun feed(detector: VadDetector, frame: ShortArray, count: Int) {
+        repeat(count) { detector.processFrame(frame, frame.size) }
+    }
 
-    @Test
-    fun testMuteGateDiscardsAudioWhenMuted() {
-        var detectedEvent: VoiceEvent? = null
-        val detector = VadDetector(sampleRate = 16000) { event ->
-            detectedEvent = event
-        }
+    @Test fun preRollAndPcmArePreservedAndCopied() {
+        val events = mutableListOf<VoiceEvent>()
+        val detector = VadDetector { events.add(it) }
+        val quiet = ShortArray(160) { 20 }
+        val voice = speech()
+        feed(detector, quiet, 20)
+        feed(detector, voice, 30)
+        feed(detector, ShortArray(160), 24)
+        val event = events.single()
+        assertEquals(680L, event.durationMs)
+        assertEquals(10880, event.audioPcm.size)
+        assertTrue(event.audioPcm.take(2240).all { it == 20.toShort() })
+        assertArrayEquals(voice, event.audioPcm.copyOfRange(2240, 2400))
+        val saved = event.audioPcm.copyOf()
+        voice.fill(0)
+        feed(detector, speech(), 30)
+        feed(detector, ShortArray(160), 24)
+        assertArrayEquals(saved, event.audioPcm)
+    }
 
-        // ミュート状態に設定
+    @Test fun shortPauseJoinsAndLongPauseSeparates() {
+        val events = mutableListOf<VoiceEvent>()
+        val detector = VadDetector { events.add(it) }
+        feed(detector, speech(), 30)
+        feed(detector, ShortArray(160), 20)
+        assertTrue(events.isEmpty())
+        feed(detector, speech(), 30)
+        feed(detector, ShortArray(160), 24)
+        assertEquals(1, events.size)
+        assertEquals(1040L, events.single().durationMs)
+        feed(detector, speech(), 30)
+        feed(detector, ShortArray(160), 24)
+        assertEquals(2, events.size)
+    }
+
+    @Test fun muteResetsActiveAudioAndPreRollEvenWithoutMutedFrames() {
+        val events = mutableListOf<VoiceEvent>()
+        val detector = VadDetector { events.add(it) }
+        feed(detector, speech(), 30)
         detector.isMuted = true
-
-        // 400Hz の大音量正弦波（強い音声）を作成
-        val buffer = createSineWaveBuffer(freq = 400.0, amplitude = 20000.0, size = 1024)
-
-        // 複数フレーム投入
-        repeat(30) {
-            detector.processFrame(buffer, buffer.size)
-        }
-
-        // ミュート中なので検知されないこと
-        assertEquals(null, detectedEvent)
-        assertTrue(detector.isMuted)
-    }
-
-    @Test
-    fun testDetectionWhenUnmuted() {
-        var detected = false
-        val detector = VadDetector(sampleRate = 16000) {
-            detected = true
-        }
-
+        feed(detector, speech(), 400)
         detector.isMuted = false
-
-        // 450Hz の正弦波バッファ
-        val speechBuffer = createSineWaveBuffer(freq = 450.0, amplitude = 15000.0, size = 1024)
-        val silenceBuffer = ShortArray(1024) { 0 }
-
-        // 発声をシミュレート (約300ms = 約5フレーム)
-        // VadDetector は System.currentTimeMillis() で継続時間を判定するため、実時間を経過させる
-        repeat(6) {
-            detector.processFrame(speechBuffer, speechBuffer.size)
-            Thread.sleep(50)
-        }
-
-        // 無音フレームを投入して発声終了をトリガー
-        repeat(3) {
-            detector.processFrame(silenceBuffer, silenceBuffer.size)
-        }
-
-        assertTrue("ミュート解除時は有効な発声が検知されること", detected)
+        feed(detector, speech(), 10)
+        feed(detector, ShortArray(160), 24)
+        assertTrue(events.isEmpty())
+        feed(detector, ShortArray(160) { 20 }, 20)
+        detector.isMuted = true
+        detector.isMuted = false
+        feed(detector, speech(), 25)
+        feed(detector, ShortArray(160), 24)
+        assertEquals(490L, events.single().durationMs)
     }
 
-    private fun createSineWaveBuffer(freq: Double, amplitude: Double, size: Int): ShortArray {
-        val buffer = ShortArray(size)
-        for (i in 0 until size) {
-            val angle = 2.0 * Math.PI * freq * i / 16000.0
-            buffer[i] = (sin(angle) * amplitude).toInt().toShort()
-        }
-        return buffer
+    @Test fun sampleTimingHonorsMinimumAndMaximumWithoutSleeping() {
+        val events = mutableListOf<VoiceEvent>()
+        val detector = VadDetector { events.add(it) }
+        feed(detector, speech(), 24)
+        feed(detector, ShortArray(160), 24)
+        assertTrue(events.isEmpty())
+        // A single large input is also split at the exact maximum length.
+        detector.processFrame(speech(16000 * 4), 16000 * 4)
+        assertEquals(3500L, events.single().durationMs)
+        assertEquals(56000, events.single().audioPcm.size)
+    }
+
+    @Test fun readSizeExcludesUnusedBufferTail() {
+        val events = mutableListOf<VoiceEvent>()
+        val detector = VadDetector { events.add(it) }
+        val frame = speech() + ShortArray(160) { Short.MAX_VALUE }
+        repeat(25) { detector.processFrame(frame, 160) }
+        feed(detector, ShortArray(160), 24)
+        assertEquals(7840, events.single().audioPcm.size)
+        assertFalse(events.single().audioPcm.contains(Short.MAX_VALUE))
     }
 }
