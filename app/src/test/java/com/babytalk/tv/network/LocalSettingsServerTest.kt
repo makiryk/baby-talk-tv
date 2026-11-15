@@ -2,8 +2,10 @@ package com.babytalk.tv.network
 
 import java.io.ByteArrayInputStream
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocalSettingsServerTest {
@@ -34,6 +36,30 @@ class LocalSettingsServerTest {
         assertNull(read(""))
         assertNull(read("GARBAGE\r\n\r\n"))
         assertNull(read("POST /save HTTP/1.1\r\nContent-Length: 999999\r\n\r\n"))
+    }
+
+    @Test
+    fun newPinIsSixDigits() {
+        repeat(50) {
+            val pin = LocalSettingsServer.newPin()
+            assertTrue(pin, Regex("[0-9]{6}").matches(pin))
+        }
+    }
+
+    @Test
+    fun pinMatchesOnlyExactPin() {
+        assertTrue(LocalSettingsServer.pinMatches("012345", "012345"))
+        assertTrue(LocalSettingsServer.pinMatches("012345", " 012345 "))
+        assertFalse(LocalSettingsServer.pinMatches("012345", "012346"))
+        assertFalse(LocalSettingsServer.pinMatches("012345", "12345"))
+        assertFalse(LocalSettingsServer.pinMatches("012345", ""))
+        assertFalse(LocalSettingsServer.pinMatches("012345", null))
+    }
+
+    @Test
+    fun pinIsReadFromForm() {
+        val form = LocalSettingsServer.parseForm("anthropic_api_key=k&pin=654321")
+        assertEquals("654321", form[LocalSettingsServer.KEY_PIN])
     }
 
     @Test

@@ -20,7 +20,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "CLAUDE_MODEL_ID", "\"claude-3-5-haiku-20241022\"")
+        buildConfigField("String", "CLAUDE_MODEL_ID", "\"claude-haiku-5-5\"")
     }
 
     buildTypes {

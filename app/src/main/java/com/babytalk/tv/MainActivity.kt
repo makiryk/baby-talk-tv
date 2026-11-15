@@ -140,7 +140,9 @@ class MainActivity : ComponentActivity() {
         // スマホ連携の設定サーバー (同一Wi-Fi内から API キーを設定)
         settingsServer = LocalSettingsServer(this)
         val settingsUrl = if (settingsServer.start()) {
-            LocalSettingsServer.getLocalIpAddress()?.let { "設定: http://$it:${LocalSettingsServer.PORT}" }
+            LocalSettingsServer.getLocalIpAddress()?.let {
+                "設定: http://$it:${LocalSettingsServer.PORT}  PIN: ${settingsServer.pin}"
+            }
         } else {
             null
         }

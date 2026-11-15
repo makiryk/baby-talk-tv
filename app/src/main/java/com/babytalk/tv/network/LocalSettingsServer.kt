@@ -9,11 +9,14 @@ import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
  * 同一Wi-Fi内のスマホのブラウザから API キーを設定するための簡易ローカルサーバー (ポート 8080)。
+ * 保存には TV 画面に表示する起動ごとの PIN が必要（同じ LAN の他の端末や、悪意あるサイトからの書き換えを防ぐ）。
  * 標準の ServerSocket のみで実装している（com.sun.net.httpserver は Android に無い）。
  */
 class LocalSettingsServer(
@@ -26,8 +29,22 @@ class LocalSettingsServer(
         const val KEY_ANTHROPIC = "anthropic_api_key"
         const val KEY_GCP_TTS = "gcp_tts_api_key"
 
+        const val KEY_PIN = "pin"
+        /** PIN を間違えられる回数。超えたらアプリを再起動するまで保存を受け付けない */
+        const val MAX_PIN_FAILURES = 5
+
         private const val MAX_BODY = 64 * 1024
         private const val MAX_LINE = 8192
+
+        /** 起動ごとの 6 桁の PIN（TV 画面にだけ表示する。CSRF 対策のトークンも兼ねる） */
+        fun newPin(random: SecureRandom = SecureRandom()): String =
+            (0 until 6).joinToString("") { random.nextInt(10).toString() }
+
+        /** 時間差で推測されないよう定数時間で比べる */
+        fun pinMatches(expected: String, supplied: String?): Boolean =
+            supplied != null && MessageDigest.isEqual(
+                expected.toByteArray(Charsets.UTF_8), supplied.trim().toByteArray(Charsets.UTF_8)
+            )
 
         class Request(val method: String, val path: String, val body: String)
 
@@ -98,6 +115,10 @@ class LocalSettingsServer(
     private var serverSocket: ServerSocket? = null
     private var executor: ExecutorService? = null
 
+    /** TV 画面に表示する PIN。保存（POST /save）にはこの PIN が必要 */
+    val pin: String = newPin()
+    private var pinFailures = 0
+
     @Synchronized
     fun start(): Boolean {
         if (serverSocket != null) return true
@@ -140,6 +161,11 @@ class LocalSettingsServer(
             req.path == "/save" ->
                 if (req.method != "POST") {
                     405 to "Method Not Allowed"
+                } else if (pinFailures >= MAX_PIN_FAILURES) {
+                    429 to renderForm("PIN の誤りが続いたため、保存を停止しています。TV でアプリを再起動してください。")
+                } else if (!pinMatches(pin, parseForm(req.body)[KEY_PIN])) {
+                    pinFailures++
+                    403 to renderForm("PIN が違います（TV 画面に表示されている 6 桁の数字）")
                 } else {
                     val form = parseForm(req.body)
                     val editor = prefs.edit()
@@ -165,6 +191,8 @@ class LocalSettingsServer(
     private fun reason(code: Int) = when (code) {
         200 -> "OK"
         400 -> "Bad Request"
+        403 -> "Forbidden"
+        429 -> "Too Many Requests"
         404 -> "Not Found"
         405 -> "Method Not Allowed"
         else -> "Error"
@@ -180,6 +208,7 @@ class LocalSettingsServer(
 <form method="POST" action="/save">
 <p>Anthropic API Key<br>現在: $a<br><input type="password" name="$KEY_ANTHROPIC" style="width:100%" autocomplete="off"></p>
 <p>Google Cloud API Key<br>現在: $g<br><input type="password" name="$KEY_GCP_TTS" style="width:100%" autocomplete="off"></p>
+<p>PIN（TV 画面に表示されている 6 桁の数字）<br><input type="text" name="$KEY_PIN" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="off"></p>
 <p><small>空欄の項目は変更されません。</small></p>
 <button type="submit">保存</button></form></body></html>"""
     }
